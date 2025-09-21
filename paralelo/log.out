@@ -1,0 +1,9 @@
+[31m[Pascal][0m No module named 'cpufreq'
+Traceback (most recent call last):
+  File "<frozen run>", line 589, in main
+  File "<frozen pascalrun>", line 311, in run
+  File "<frozen pascalrun>", line 291, in prepare_run
+  File "PyInstaller/loader/pyimod02_importers.py", line 499, in exec_module
+  File "<actuators/cpu.py>", line 1, in <module>
+  File "<frozen actuators.cpu>", line 7, in <module>
+ModuleNotFoundError: No module named 'cpufreq'

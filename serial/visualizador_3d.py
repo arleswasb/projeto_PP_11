@@ -1,3 +1,4 @@
+from fileinput import filename
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -11,12 +12,39 @@ class FluidVisualizer:
         self.ax = None
         
     def load_2D_field(self, filename):
-        """Carrega dados de campo 2D"""
-        data = np.loadtxt(filename, skiprows=1)
-        x = data[:, 0].reshape(NX, NY)
-        y = data[:, 1].reshape(NX, NY)
-        z = data[:, 2].reshape(NX, NY)
-        return x, y, z
+        """Carrega dados de campo 2D - versão debug"""
+        print(f"Carregando: {filename}")
+        
+        # Mostra as primeiras linhas do arquivo
+        with open(filename, 'r') as f:
+            for i, line in enumerate(f):
+                if i < 5:  # Mostra primeiras 5 linhas
+                    print(f"Linha {i}: {line.strip()}")
+                if i == 5:
+                    print("...")
+                    break
+        
+        # Tenta carregar de forma robusta
+        try:
+            data = []
+            with open(filename, 'r') as f:
+                for line in f:
+                    if line.strip() and not line.startswith('X'):
+                        values = line.split()
+                        if len(values) == 3:
+                            data.append([float(v) for v in values])
+            
+            data = np.array(data)
+            print(f"Dados carregados: shape {data.shape}")
+            
+            x = data[:, 0].reshape(NX, NY)
+            y = data[:, 1].reshape(NX, NY)
+            z = data[:, 2].reshape(NX, NY)
+            return x, y, z
+            
+        except Exception as e:
+            print(f"Erro detalhado: {e}")
+            raise
     
     def load_vector_field(self, filename):
         """Carrega dados de campo vetorial"""
