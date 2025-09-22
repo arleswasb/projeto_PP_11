@@ -5,7 +5,7 @@
 
 #define NX 512
 #define NY 512
-#define NT 2000
+#define NT 10000
 #define DT 0.001
 #define NU 0.01
 
@@ -23,19 +23,28 @@ int main() {
         vn[i] = malloc(NY * sizeof(double));
     }
     
-    // Inicialização paralela
     #pragma omp parallel for
     for (int i = 0; i < NX; i++) {
         for (int j = 0; j < NY; j++) {
-            u[i][j] = 1.0 + ((i-NX/2)*(i-NX/2)+(j-NY/2)*(j-NY/2) < 400 ? 2.0*exp(-((i-NX/2)*(i-NX/2)+(j-NY/2)*(j-NY/2))/100.0) : 0.0);
-            v[i][j] = 0.0 + ((i-NX/2)*(i-NX/2)+(j-NY/2)*(j-NY/2) < 400 ? 1.5*exp(-((i-NX/2)*(i-NX/2)+(j-NY/2)*(j-NY/2))/100.0) : 0.0);
+            double dx = i - NX/2, dy = j - NY/2;
+            double dist_sq = dx*dx + dy*dy;
+            
+            u[i][j] = 1.0;
+            v[i][j] = 0.0;
+            
+            if (dist_sq < 400) {
+                double perturbation = exp(-dist_sq/100.0);
+                u[i][j] += 2.0 * perturbation;
+                v[i][j] += 1.5 * perturbation;
+            }
         }
     }
     
     double start = omp_get_wtime();
     
-    // Loop principal
+    // Loop de tempo PRINCIPAL
     for (int t = 0; t < NT; t++) {
+        // 1. Atualização dos valores (um laço paralelo)
         #pragma omp parallel for
         for (int i = 1; i < NX-1; i++) {
             for (int j = 1; j < NY-1; j++) {
@@ -43,27 +52,32 @@ int main() {
                 vn[i][j] = v[i][j] + DT*NU*(v[i+1][j] + v[i-1][j] + v[i][j+1] + v[i][j-1] - 4*v[i][j]);
             }
         }
-        
-        // Boundary conditions
+        // 2. Aplicar condições de contorno (dois laços paralelos)
         #pragma omp parallel for
         for (int i = 0; i < NX; i++) {
-            un[i][0] = un[i][NY-2]; un[i][NY-1] = un[i][1];
-            vn[i][0] = vn[i][NY-2]; vn[i][NY-1] = vn[i][1];
+            un[i][0] = un[i][NY-2]; 
+            un[i][NY-1] = un[i][1];
+            vn[i][0] = vn[i][NY-2]; 
+            vn[i][NY-1] = vn[i][1];
         }
+
         #pragma omp parallel for
         for (int j = 0; j < NY; j++) {
-            un[0][j] = un[NX-2][j]; un[NX-1][j] = un[1][j];
-            vn[0][j] = vn[NX-2][j]; vn[NX-1][j] = vn[1][j];
+            un[0][j] = un[NX-2][j]; 
+            un[NX-1][j] = un[1][j];
+            vn[0][j] = vn[NX-2][j]; 
+            vn[NX-1][j] = vn[1][j];
         }
         
-        // Swap pointers
+        // Swap pointers (feito pelo thread mestre, serialmente)
         double **ut = u, **vt = v;
         u = un; v = vn;
         un = ut; vn = vt;
     }
     
-    printf("%.6f\n", omp_get_wtime() - start);
-    
+    double end = omp_get_wtime();
+    printf("%.6f\n", end - start);
+
     // Cleanup
     for (int i = 0; i < NX; i++) {
         free(u[i]); free(v[i]); free(un[i]); free(vn[i]);

@@ -5,13 +5,35 @@
 
 #define NX 256
 #define NY 256
-#define NT 1000
+#define NT 10000
 #define DT 0.01
 #define NU 1.00
-#define OUTPUT_EVERY 50
+
+// NOVO: Função dedicada para salvar o estado do campo vetorial
+void save_vector_field(int step, double **u, double **v) {
+    char filename[50];
+    sprintf(filename, "vector_field_step%d.dat", step);
+    FILE *file = fopen(filename, "w");
+    if (!file) {
+        printf("Erro ao criar o arquivo %s\n", filename);
+        return;
+    }
+    
+    // MODIFICADO: Cabeçalho com as 4 colunas
+    fprintf(file, "X Y U_Value V_Value\n");
+    for (int i = 0; i < NX; i++) {
+        for (int j = 0; j < NY; j++) {
+            // MODIFICADO: Escreve as coordenadas, u e v na mesma linha
+            fprintf(file, "%d %d %.6f %.6f\n", i, j, u[i][j], v[i][j]);
+        }
+    }
+    fclose(file);
+    printf("Salvo o arquivo: %s\n", filename);
+}
+
 
 int main() {
-    // Alocar arrays 2D
+    // Alocar arrays 2D (sem alterações)
     double **u = (double**)malloc(NX * sizeof(double*));
     double **v = (double**)malloc(NX * sizeof(double*));
     double **u_new = (double**)malloc(NX * sizeof(double*));
@@ -24,7 +46,7 @@ int main() {
         v_new[i] = (double*)malloc(NY * sizeof(double));
     }
     
-    // Inicialização com perturbação
+    // Inicialização com perturbação (sem alterações)
     for (int i = 0; i < NX; i++) {
         for (int j = 0; j < NY; j++) {
             u[i][j] = 1.0;
@@ -38,30 +60,14 @@ int main() {
         }
     }
     
-    // Salvar estado inicial
-    FILE *file;
-    file = fopen("u_field_step0.dat", "w");
-    fprintf(file, "X Y Value\n");
-    for (int i = 0; i < NX; i++) {
-        for (int j = 0; j < NY; j++) {
-            fprintf(file, "%d %d %.6f\n", i, j, u[i][j]);
-        }
-    }
-    fclose(file);
-    
-    file = fopen("v_field_step0.dat", "w");
-    fprintf(file, "X Y Value\n");
-    for (int i = 0; i < NX; i++) {
-        for (int j = 0; j < NY; j++) {
-            fprintf(file, "%d %d %.6f\n", i, j, v[i][j]);
-        }
-    }
-    fclose(file);
+    // MODIFICADO: Salva o estado inicial usando a nova função
+    save_vector_field(0, u, v);
     
     double start_time = omp_get_wtime();
     
     // Simulação principal
-    for (int step = 0; step < NT; step++) {
+    for (int step = 1; step <= NT; step++) { // MODIFICADO: laço vai até <= NT
+        // Cálculo do Laplaciano (sem alterações)
         for (int i = 1; i < NX-1; i++) {
             for (int j = 1; j < NY-1; j++) {
                 double d2u_dx2 = (u[i+1][j] - 2.0*u[i][j] + u[i-1][j]);
@@ -74,7 +80,7 @@ int main() {
             }
         }
         
-        // Condições de contorno periódicas
+        // Condições de contorno periódicas (sem alterações)
         for (int i = 0; i < NX; i++) {
             u_new[i][0] = u_new[i][NY-2];
             u_new[i][NY-1] = u_new[i][1];
@@ -88,7 +94,7 @@ int main() {
             v_new[NX-1][j] = v_new[1][j];
         }
         
-        // Trocar arrays
+        // Trocar arrays (sem alterações)
         double **temp_u = u;
         double **temp_v = v;
         u = u_new;
@@ -96,55 +102,16 @@ int main() {
         u_new = temp_u;
         v_new = temp_v;
         
-        // Salvar em intervalos regulares
-        if (step % OUTPUT_EVERY == 0 && step > 0) {
-            char filename[50];
-            
-            sprintf(filename, "u_field_step%d.dat", step);
-            file = fopen(filename, "w");
-            fprintf(file, "X Y Value\n");
-            for (int i = 0; i < NX; i++) {
-                for (int j = 0; j < NY; j++) {
-                    fprintf(file, "%d %d %.6f\n", i, j, u[i][j]);
-                }
-            }
-            fclose(file);
-            
-            sprintf(filename, "v_field_step%d.dat", step);
-            file = fopen(filename, "w");
-            fprintf(file, "X Y Value\n");
-            for (int i = 0; i < NX; i++) {
-                for (int j = 0; j < NY; j++) {
-                    fprintf(file, "%d %d %.6f\n", i, j, v[i][j]);
-                }
-            }
-            fclose(file);
+        // MODIFICADO: Lógica de salvamento simplificada para instantes chave
+        if (step % (NT / 5) == 0 && step > 0) {
+            save_vector_field(step, u, v);
         }
     }
-    
-    // Salvar estado final
-    file = fopen("u_field_step1000.dat", "w");
-    fprintf(file, "X Y Value\n");
-    for (int i = 0; i < NX; i++) {
-        for (int j = 0; j < NY; j++) {
-            fprintf(file, "%d %d %.6f\n", i, j, u[i][j]);
-        }
-    }
-    fclose(file);
-    
-    file = fopen("v_field_step1000.dat", "w");
-    fprintf(file, "X Y Value\n");
-    for (int i = 0; i < NX; i++) {
-        for (int j = 0; j < NY; j++) {
-            fprintf(file, "%d %d %.6f\n", i, j, v[i][j]);
-        }
-    }
-    fclose(file);
     
     double end_time = omp_get_wtime();
     printf("Tempo de execução: %.6f segundos\n", end_time - start_time);
     
-    // Liberar memória
+    // Liberar memória (sem alterações)
     for (int i = 0; i < NX; i++) {
         free(u[i]);
         free(v[i]);
