@@ -1,86 +1,149 @@
-Claro. Aqui está um `README.md` completo, escrito em Markdown, com todas as orientações para compilar e utilizar o programa, baseado em nossas conversas.
+Excelente ideia. Aprimorar a documentação é um passo crucial.
 
-Você pode salvar este texto em um arquivo chamado `README.md` no mesmo diretório do seu código-fonte.
+Peguei o `README.md` que você criou e o aprimorei, adicionando mais contexto do projeto (com base no seu relatório), uma seção de características técnicas, e, principalmente, um **exemplo de `Makefile`** para profissionalizar e simplificar o processo de compilação e teste.
+
+Aqui está a versão aprimorada:
 
 -----
 
-# Solucionador de Difusão 2D com OpenMP
+# Análise de Desempenho em Solucionador de Difusão 2D com OpenMP
 
-Este programa realiza uma simulação da difusão de um campo de velocidade em uma grade 2D, utilizando uma implementação paralela com OpenMP para otimização de desempenho. O código resolve a equação da difusão (termo de viscosidade das equações de Navier-Stokes) pelo método das diferenças finitas.
+Este projeto implementa um simulador para a equação da difusão 2D, um caso simplificado das equações de Navier-Stokes. O foco do trabalho é analisar e comparar o desempenho de diferentes estratégias de paralelização de laços aninhados utilizando OpenMP, especificamente as cláusulas `collapse` e `schedule`.
 
-O programa é projetado para ser executado a partir da linha de comando, permitindo a configuração flexível dos parâmetros da simulação, o que o torna ideal para uso em scripts de análise e ambientes de supercomputação.
+O código foi projetado para ser flexível e robusto, com parâmetros de simulação configuráveis via linha de comando, tornando-o ideal para a execução em scripts de análise de desempenho e em ambientes de supercomputação.
+
+## Visão Geral do Problema
+
+O programa resolve numericamente a equação da difusão vetorial $(\\frac{\\partial\\vec{v}}{\\partial t}=\\nu\\nabla^{2}\\vec{v})$ em uma grade 2D com condições de contorno periódicas. [cite\_start]Para isso, utiliza o método das diferenças finitas com um estêncil de cinco pontos para aproximar o operador Laplaciano[cite: 43, 44, 46].
+
+## Características Técnicas
+
+  * **Linguagem**: C com a biblioteca OpenMP.
+  * [cite\_start]**Paralelização**: Implementada com diretivas OpenMP para paralelizar os laços aninhados que representam a maior carga computacional[cite: 61].
+  * [cite\_start]**Otimização de Laços**: Utiliza a cláusula `collapse(2)` para criar um espaço de iteração único e melhorar o balanceamento de carga[cite: 61].
+  * [cite\_start]**Análise de Agendamento**: O código está preparado para testar diferentes políticas de `schedule` (como `static`, `dynamic` e `guided`) para avaliar seu impacto em cargas de trabalho uniformes[cite: 62].
+  * **Parametrização**: A perturbação inicial na grade é totalmente configurável por argumentos de linha de comando, permitindo testar diferentes cenários de simulação.
+  * **Medição de Desempenho**: O tempo de execução da seção de cálculo principal é medido com precisão usando `omp_get_wtime()`.
 
 ## Pré-requisitos
 
 Para compilar e executar este programa, você precisará de:
 
-  * Um compilador C com suporte a OpenMP (como o **GCC**).
-  * A biblioteca matemática (`math.h`).
+  * Um compilador C com suporte a OpenMP (ex: **GCC**).
+  * A ferramenta `make` (recomendado para usar o `Makefile`).
 
 ## Compilação
 
-Abra um terminal no diretório onde o arquivo `navier_stokes_otm.c` está localizado e execute o seguinte comando para compilar:
+Recomenda-se o uso do `Makefile` para simplificar o processo. Crie um arquivo chamado `Makefile` no mesmo diretório do seu código com o seguinte conteúdo:
 
-```bash
-gcc -o navier_stokes_otm navier_stokes_otm.c -fopenmp -lm
+```makefile
+# Nome do compilador
+CC = gcc
+
+# Flags de compilação
+# -O3: Otimização máxima
+# -Wall: Habilita todos os avisos importantes
+# -fopenmp: Habilita o suporte ao OpenMP
+# -lm: Linka a biblioteca matemática
+CFLAGS = -O3 -Wall -fopenmp -lm
+
+# Nome do arquivo fonte
+SRC = navier_stokes_otm.c
+
+# Nome do executável de saída
+TARGET = navier_stokes_otm
+
+# Regra padrão: compila o programa
+all: $(TARGET)
+
+$(TARGET): $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+
+# Regra para limpar os arquivos gerados
+clean:
+	rm -f $(TARGET)
+
+# Regra para executar o programa com parâmetros padrão (exemplo)
+run: all
+	./$(TARGET) 400.0 100.0 2.0 1.5
+
+.PHONY: all clean run
 ```
 
-  * `-o navier_stokes_otm`: Define o nome do arquivo executável de saída.
-  * `-fopenmp`: Habilita o suporte à paralelização com OpenMP.
-  * `-lm`: Vincula a biblioteca matemática, necessária para a função `exp()`.
+Com o `Makefile` criado, você pode usar os seguintes comandos no terminal:
+
+  * **Para compilar o programa:**
+    ```bash
+    make
+    ```
+  * **Para remover o executável e limpar o diretório:**
+    ```bash
+    make clean
+    ```
+
+#### Compilação Manual (Alternativa)
+
+Se preferir compilar manualmente, use o comando:
+
+```bash
+gcc -O3 -Wall -o navier_stokes_otm navier_stokes_otm.c -fopenmp -lm
+```
 
 ## Uso (Execução)
 
-O programa é executado via linha de comando, passando os parâmetros da perturbação inicial como argumentos.
+O programa é executado via linha de comando, passando os 4 parâmetros da perturbação inicial. Além disso, é fundamental controlar o número de threads para a análise de desempenho.
 
-### Sintaxe
+### Controlando o Número de Threads
+
+Use a variável de ambiente `OMP_NUM_THREADS` para definir quantas threads o OpenMP deve utilizar.
+
+```bash
+export OMP_NUM_THREADS=16
+```
+
+### Sintaxe de Execução
 
 ```bash
 ./navier_stokes_otm <raio_sq> <suavidade> <amp_x> <amp_y>
 ```
 
-### Parâmetros da Linha de Comando
+#### Parâmetros:
 
-O programa requer exatamente 4 argumentos:
+1.  `raio_sq` (double): O **quadrado do raio** da perturbação (Ex: `400.0` para um raio de 20).
+2.  `suavidade` (double): A **dispersão** da perturbação gaussiana (Ex: `100.0`). Valores maiores geram uma perturbação mais suave.
+3.  `amp_x` (double): A **amplitude** da perturbação na velocidade `u` (Ex: `2.0`).
+4.  `amp_y` (double): A **amplitude** da perturbação na velocidade `v` (Ex: `1.5`).
 
-1.  `raio_sq` (double): O **quadrado do raio** da área da perturbação. A perturbação será aplicada em todos os pontos cuja distância ao quadrado do centro da grade seja menor que este valor.
+## Exemplo de Análise de Desempenho
 
-      * *Exemplo: `400.0` corresponde a um raio de 20.*
-
-2.  `suavidade` (double): Controla a **dispersão (ou suavidade)** da perturbação gaussiana. Valores maiores resultam em uma perturbação mais suave e espalhada. Valores menores resultam em uma perturbação mais "pontuda" e concentrada.
-
-      * *Exemplo: `100.0`.*
-
-3.  `amp_x` (double): A **amplitude (força)** da perturbação no componente X do campo de velocidade (`u`).
-
-      * *Exemplo: `2.0`.*
-
-4.  `amp_y` (double): A **amplitude (força)** da perturbação no componente Y do campo de velocidade (`v`).
-
-      * *Exemplo: `1.5`.*
-
-## Exemplos de Uso
-
-**1. Executando com os valores padrão (similares aos originais do código):**
+O objetivo deste código é analisar a escalabilidade. Um exemplo de script de teste poderia ser:
 
 ```bash
-./navier_stokes_otm 400.0 100.0 2.0 1.5
+#!/bin/bash
+echo "Compilando o programa..."
+make
+
+PARAMS="400.0 100.0 2.0 1.5"
+echo "Executando com os parâmetros: $PARAMS"
+
+for threads in 1 2 4 8 16; do
+    echo "Executando com $threads thread(s)..."
+    export OMP_NUM_THREADS=$threads
+    # Executa 5 vezes para tirar a média
+    for i in {1..5}; do
+        ./navier_stokes_otm $PARAMS
+    done
+done
 ```
-
-**2. Executando uma simulação com uma perturbação maior, mais suave e com maior intensidade na direção Y:**
-
-```bash
-./navier_stokes_otm 900.0 250.0 0.5 3.0
-```
-
-Se o programa for executado com um número incorreto de argumentos, ele exibirá uma mensagem de ajuda.
 
 ## Saída (Output)
 
-Após a conclusão da simulação, o programa imprime no terminal um único valor de ponto flutuante. Este número representa o **tempo de execução em segundos** do laço principal de cálculo, medido com `omp_get_wtime()`.
+O programa imprime um único valor no terminal: o **tempo de execução em segundos** do laço principal da simulação.
 
-Exemplo de saída:
+**Exemplo de saída:**
 
 ```
-1.234567
+1.926518
 ```
+
+Este valor é a métrica principal a ser usada para calcular o *speedup* e a eficiência das diferentes estratégias de paralelização.
